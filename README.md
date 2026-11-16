@@ -1,43 +1,64 @@
+# UML-CAM: Uncertainty-Aware Multi-Layer Grad-CAM
 
 Course project — **Explainable AI, Track 2 (Extension of a Research Paper)**.
 
 We extend **Grad-CAM** (Selvaraju et al., ICCV 2017) with two inference-only
-additions and test whether they actually help:
+additions and test rigorously whether they help:
 
 1. **Multi-layer fusion** — combine Grad-CAM maps from three convolutional
    depths, weighted by each layer's measured faithfulness.
 2. **TTA uncertainty** — a per-pixel uncertainty map from test-time
-   augmentation, showing where the explanation is unstable.
+   augmentation, marking where the explanation is unstable.
 
-The backbone is **never trained or fine-tuned** — everything is post-hoc on a
-pretrained ImageNet ResNet-50, evaluated on PASCAL VOC 2007.
+The backbone is **never trained or fine-tuned**. Everything is post-hoc on
+pretrained ImageNet ResNet-50 (and VGG-16), evaluated on PASCAL VOC 2007 test.
 
 ## Research questions
 
-- **H1:** Does faithfulness-weighted multi-layer fusion produce a *more
+- **H1** — Does faithfulness-weighted multi-layer fusion produce a *more
   faithful* explanation than single-layer Grad-CAM and other CAM baselines?
-- **H2:** Does the TTA uncertainty map carry a meaningful reliability signal —
-  are high-uncertainty regions less faithful?
+- **H2** — Does the TTA uncertainty map carry a meaningful reliability signal,
+  i.e. are high-uncertainty regions less faithful?
 
-## Main findings (honest summary)
+## Main findings
 
-- **H1 — not supported.** Over 100 VOC test images, single-layer Grad-CAM
-  (ROAD 0.1027) is nominally best and our weighted fusion (0.0997) does not
-  beat it; a paired Wilcoxon test gives **p = 0.35**, i.e. the methods are
-  statistically comparable. All 95% confidence intervals overlap.
-- **Why.** The layer sweep explains it: the deepest layer alone is by far the
-  most faithful (ROAD 0.096) while shallow layers are weak (layer3 0.060,
-  layer2 0.039), so fusing them in only *dilutes* the strong map.
-- **Weighting does help relative to naive averaging:** weighted fusion (0.0997)
-  > uniform fusion (0.0963).
-- **The two faithfulness metrics disagree** — fusion ranks best on Deletion but
-  not on ROAD, a caution against single-metric evaluation.
-- **H2 — not supported.** The uncertainty map is spatially structured (it
-  concentrates on the object), but the image-level correlation between
-  uncertainty and faithfulness is not significant (Spearman r = −0.11,
-  p = 0.55, N = 30).
+**Faithfulness (100 images, ROAD, higher is better).** Weighted fusion ranks
+first on all three faithfulness metrics, but the margin over single-layer
+Grad-CAM is not significant:
 
-A negative result, but a measured and explained one.
+| Method | ROAD | 95% CI |
+|---|---|---|
+| UML-CAM (weighted) | **0.1069** | 0.0932 – 0.1207 |
+| Grad-CAM | 0.1064 | 0.0934 – 0.1204 |
+| Score-CAM | 0.0995 | 0.0867 – 0.1125 |
+| Layer-CAM | 0.0987 | 0.0857 – 0.1130 |
+| Grad-CAM++ | 0.0983 | 0.0848 – 0.1120 |
+| UML-CAM (uniform) | 0.0973 | 0.0838 – 0.1112 |
+
+- vs Grad-CAM: Wilcoxon **p = 0.83** → statistically tied.
+- vs uniform fusion: Holm-adjusted **p = 0.00002** → the **weighting is what
+  makes fusion viable**; naive averaging is the worst method tested.
+- Same ordering on Deletion and Insertion, and on a second architecture (VGG-16).
+
+**Why fusion cannot beat the deepest layer.** The layer sweep shows shallow
+CAMs are nearly uninformative (ROAD 0.022 for layer2, 0.039 for layer3, vs
+0.098 for layer4), and on localization they barely exceed a random-map
+baseline. There is little for fusion to add.
+
+**Localization (84 images).** Single-layer Grad-CAM localizes best
+(EBPG 0.608 vs 0.488 for weighted fusion); fusion keeps the peak on the object
+(Pointing Game 0.845, joint best) but disperses the surrounding energy. There
+is **no faithfulness/localization trade-off** — the deep layer leads on both.
+
+**H2 — supported at image level, confounded at pixel level.** Mean uncertainty
+predicts faithfulness across images (Spearman **ρ = −0.434, p = 0.0005, N=60**).
+At pixel level, removing the *most* uncertain pixels damages the explanation
+most, because uncertainty concentrates on the salient object. An earlier null
+result (ρ = −0.11, p = 0.55) was an artefact of a degenerate augmentation set
+that repeated views.
+
+**Sanity check passes.** Cascading randomization collapses map correlation from
+1.0 to ≈0.18, so the explanation genuinely depends on the learned weights.
 
 ## Setup
 
@@ -45,59 +66,74 @@ A negative result, but a measured and explained one.
 pip install -r requirements.txt
 ```
 
-Runs on a single GPU (developed on a free Kaggle T4). PASCAL VOC 2007 `test` is
-downloaded automatically, or picked up from a Kaggle-mounted copy if present.
+Runs on a single GPU (developed on a free Kaggle T4). VOC 2007 test is detected
+from a Kaggle-mounted copy if present, otherwise downloaded.
 
 ## Reproducing the experiments
 
 ```bash
-python week1/run_experiments.py validate    # Week-1 correctness gate
-python week1/run_experiments.py benchmark   # main 100-image benchmark -> results_large.csv, benchmark_plot.png
-python week1/run_experiments.py sweep       # layer-set sensitivity -> results_sweep.csv
-python week1/run_experiments.py h2          # both uncertainty experiments
-python week1/run_experiments.py all         # everything
+python src/run_validation.py     # correctness gate (run this first)
+python src/run_benchmark.py      # 100-image benchmark, CIs, Holm tests, sweeps
+python src/run_localization.py   # Pointing Game / IoU / EBPG + qualitative grid
+python src/run_vgg16.py          # second architecture
+python src/run_uncertainty.py    # TTA uncertainty, sparsification, H2
+python src/run_sanity.py         # cascading randomization
 ```
 
-Random seeds are fixed (`SEED = 0`). Fusion weights are calibrated on images
-100–119 and all reported results use images 0–99, so the weights are never
-tuned on the evaluation set.
+Outputs are written to `results/` (override with `UMLCAM_OUT=<dir>`). Seeds are
+fixed (`SEED = 0`). Fusion weights are calibrated on images 100–119 and all
+results are reported on images 0–99, so weights are never tuned on the
+evaluation set.
 
 ## Repository structure
 
-```
-week1/
-  method.py            Grad-CAM implemented from scratch + model loading
-  metrics.py           Deletion faithfulness metric from scratch
-  road_metric.py       ROAD metric (primary, debiased faithfulness measure)
-  fusion.py            Multi-layer CAMs, uniform and faithfulness-weighted fusion
-  tta.py               Test-time-augmentation mean explanation + uncertainty map
-  baselines.py         Grad-CAM++, Layer-CAM, Score-CAM baselines
-  run_experiments.py   Reproduces every reported experiment
-  results.csv          30-image benchmark (ROAD + Deletion, incl. Score-CAM)
-  results_large.csv    100-image benchmark (ROAD, with CIs)
-  benchmark_plot.png   Faithfulness by method with 95% confidence intervals
-requirements.txt
-```
+- **`week1/`** — our initial from-scratch implementation and its early results.
+  Kept as a record of the first milestone; it uses different preprocessing and
+  is **superseded by `src/`**.
+- **`src/`** — the final pipeline. **All reported results come from here.**
+- **`results/`** — every CSV and figure, each regenerable by a script in `src/`.
+- **`notebooks/`** — thin Kaggle runners that clone the repo, run `src/`, and
+  push results back.
 
 ## Validation
 
-Before any experiment, the harness was checked for correctness:
+`src/run_validation.py` checks the from-scratch code before any result is used:
 
-- Our from-scratch Grad-CAM matches the reference `pytorch-grad-cam`
-  implementation (Pearson correlation **1.000**).
+- Our Grad-CAM vs the reference `pytorch-grad-cam` implementation:
+  Pearson **r = 1.0000**.
 - Our Deletion metric ranks a real saliency map above a random one
-  (mean AUC 0.096 vs 0.102; the real map wins on 70% of images).
+  (mean AUC 0.0826 vs 0.0889). Note the per-image win rate is only 0.50,
+  which is itself evidence that Deletion is weakly discriminative — one reason
+  we treat ROAD as the primary metric.
+
+## Division of work
+
+- **Prisha** — Grad-CAM implementation, multi-layer fusion, CAM baselines,
+  main benchmark and sweeps, localization, VGG-16.
+- **Parvathy** — Deletion and ROAD metrics, TTA uncertainty, sparsification and
+  H2 experiments, cascading randomization sanity check.
+
+Both members reviewed each other's code and results.
 
 ## LLM-use disclosure
 
-We used an LLM assistant (Claude) to scaffold starter code, explain methods and
-metrics, and help draft the report. All code was read, executed and verified by
-the team before any result was trusted — specifically, our from-scratch Grad-CAM
-was validated against the `pytorch-grad-cam` library and our Deletion metric
-against a random-saliency control (see **Validation** above). Every number
-reported in this repository and in the report comes from our own runs on our own
-hardware. The experimental design decisions, the analysis and the conclusions
-are our own, and we are responsible for them.
+We used an LLM assistant (Claude) throughout this project: to scaffold starter
+code, explain methods and metrics, suggest experimental designs, debug runtime
+errors, help interpret results, and draft this report and README. The research
+questions, the choice of experiments to run, and the conclusions drawn are ours.
+
+How the work was verified:
+
+1. **Reference check** — our from-scratch Grad-CAM was validated against
+   `pytorch-grad-cam` (r = 1.0000) and our Deletion metric against a
+   random-saliency control, via `src/run_validation.py`.
+2. **Every number is ours** — all reported values were produced by running the
+   committed code in our own Kaggle sessions, and `src/` reproduces the values
+   we first obtained interactively (ROAD 0.1068 → 0.1069; H2 ρ −0.428 → −0.434).
+3. **Errors were found and corrected** — a code review showed the initial TTA
+   set repeated views (T = 8 gave only 6 distinct augmentations); replacing it
+   with 16 distinct augmentations changed H2 from non-significant to
+   significant. We report both outcomes.
 
 ## References
 
@@ -108,3 +144,5 @@ are our own, and we are responsible for them.
 - Petsiuk et al., *RISE* (Deletion/Insertion), BMVC 2018
 - Rong et al., *ROAD*, ICML 2022
 - Adebayo et al., *Sanity Checks for Saliency Maps*, NeurIPS 2018
+- Binder et al., *Shortcomings of Top-Down Randomization-Based Sanity Checks*,
+  CVPR 2023
