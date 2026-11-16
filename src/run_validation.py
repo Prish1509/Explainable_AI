@@ -8,7 +8,7 @@ Two checks, both of which must pass before any result is trusted:
   2. Our Deletion metric must rank a real saliency map above a random one --
      if it cannot tell signal from noise, it cannot rank explanation methods.
 
-Produces: validation.csv
+Produces: validation.csv, validation_summary.csv
 
 Run:  python src/run_validation.py
 """
@@ -60,6 +60,21 @@ def main():
         OUTPUT_DIR / "validation.csv", index=False)
 
     passed = correlation > 0.95 and real_mean < random_mean
+
+    # Commit the summary numbers too: the Pearson check is the headline
+    # validation result, so it must live in a file, not only in stdout.
+    pd.DataFrame([
+        {"metric": "gradcam_vs_library_pearson", "value": correlation,
+         "n": 1, "threshold": "> 0.95"},
+        {"metric": "deletion_auc_real_map", "value": real_mean,
+         "n": N_IMAGES, "threshold": "< random"},
+        {"metric": "deletion_auc_random_map", "value": random_mean,
+         "n": N_IMAGES, "threshold": ""},
+        {"metric": "deletion_real_map_win_rate", "value": win_rate,
+         "n": N_IMAGES, "threshold": ""},
+        {"metric": "validation_passed", "value": float(passed),
+         "n": 1, "threshold": "1 = passed"},
+    ]).to_csv(OUTPUT_DIR / "validation_summary.csv", index=False)
     print("VALIDATION PASSED" if passed else "VALIDATION FAILED")
 
 
