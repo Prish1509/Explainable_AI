@@ -23,7 +23,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.stats import spearmanr
 
-from common import (init, load_sample, grad_cam, road_score,
+from common import (init, load_sample, grad_cam, road_score, trapezoid,
                     IMAGENET_MEAN, IMAGENET_STD, OUTPUT_DIR, SEED)
 
 N_SPARSE = 15
@@ -127,8 +127,8 @@ def main():
 
     # Area between the curves. H2 predicts removing the MOST uncertain pixels
     # preserves faithfulness best, i.e. most_uncertain above least_uncertain.
-    gap = float(np.trapz(curve["most_uncertain"], fractions)
-                - np.trapz(curve["least_uncertain"], fractions))
+    gap = float(trapezoid(curve["most_uncertain"], fractions)
+                - trapezoid(curve["least_uncertain"], fractions))
     print(f"\narea(most - least) = {gap:.4f}")
     print("positive => high-uncertainty pixels are the removable ones (H2);")
     print("negative => high-uncertainty pixels are the IMPORTANT ones "
