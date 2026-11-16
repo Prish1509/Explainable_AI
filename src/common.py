@@ -52,12 +52,20 @@ PREPROCESS = transforms.Compose([
 
 
 def set_seeds(seed: int = SEED) -> None:
+    """Fix every source of randomness so a run is repeatable.
+
+    cuDNN's benchmark mode picks convolution algorithms by timing them at
+    runtime, so it can select different (and sometimes non-deterministic)
+    kernels on different runs or machines. We turn it off and request
+    deterministic kernels instead: slightly slower, but repeatable.
+    """
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.deterministic = True
 
 
 def discover_voc_root():
