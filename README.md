@@ -130,6 +130,9 @@ from-scratch Grad-CAM matches the reference `pytorch-grad-cam` implementation
 from a random one, and that the pipeline genuinely depends on the model's
 learned weights. No GPU, no CUDA, no configuration.
 
+On a machine that does not already have VOC 2007, the first run also downloads
+the ~450 MB archive into `<repo>/data` (git-ignored), so allow extra time once.
+
 It does **not** regenerate the reported results — for that, use the full run.
 
 ### Full reproduction — a GPU is strongly recommended

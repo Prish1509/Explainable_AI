@@ -1,0 +1,19 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# The VOC 2007 archive lands here on a local run (~450 MB).
+# It is public data and is deliberately not redistributed with this repo.
+data/
+
+# LaTeX build artefacts
+*.aux
+*.log
+*.out
+*.toc
+
+# Editor / OS noise
+.ipynb_checkpoints/
+.DS_Store
+.vscode/
+.idea/
