@@ -69,9 +69,31 @@ pip install -r requirements.txt
 ```
 
 **Requirements.** Python 3.10+ and the pinned packages in `requirements.txt`.
-No manual data setup: PASCAL VOC 2007 test (~450 MB) is downloaded into
-`data/` on first run, or picked up automatically from a Kaggle-mounted copy.
-Pretrained weights download themselves.
+Pretrained ImageNet weights download themselves via torchvision.
+
+**Data.** We use the **PASCAL VOC 2007 `test` split** (4,952 images, ~450 MB) —
+the official challenge data, described at
+[host.robots.ox.ac.uk/pascal/VOC/voc2007](http://host.robots.ox.ac.uk/pascal/VOC/voc2007/)
+and introduced by Everingham et al., *The PASCAL Visual Object Classes (VOC)
+Challenge*, IJCV 2010.
+
+No manual setup is needed. On first run the code looks for the data in this
+order and downloads it only if nothing is found:
+
+1. a Kaggle-mounted copy under `/kaggle/input/**/VOCdevkit`
+2. an existing copy at `<repo>/data/VOCdevkit`
+3. otherwise, torchvision downloads it into `<repo>/data`
+
+Our runs used the Kaggle mirror
+[kaggle.com/datasets/zaraks/pascal-voc-2007](https://www.kaggle.com/datasets/zaraks/pascal-voc-2007),
+which is the same VOC 2007 test archive. If the official host is unreachable,
+place any VOC copy at `<repo>/data/VOCdevkit/VOC2007/` and it will be picked up
+automatically.
+
+**Which images.** Results are reported on indices **0–99** of the test split
+and fusion weights calibrated on **100–119**. The split is fixed and read in a
+deterministic order, so these indices refer to the same images on any machine —
+which is why the dataset does not need to be redistributed with this repository.
 
 **Hardware.** A CUDA GPU is strongly recommended. The full reproduction is
 roughly 25,000 forward passes through ResNet-50 — about 95 minutes on a Tesla
