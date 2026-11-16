@@ -29,7 +29,13 @@ from torchvision.models import (
 
 SEED = 0
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-OUTPUT_DIR = Path(os.environ.get("UMLCAM_OUT", "/kaggle/working/umlcam_outputs"))
+
+# Repository root, resolved from this file, so the defaults below work anywhere
+# (a laptop, a server, Kaggle) without any environment setup.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Results go into <repo>/results by default; override with UMLCAM_OUT=<dir>.
+OUTPUT_DIR = Path(os.environ.get("UMLCAM_OUT", REPO_ROOT / "results"))
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Evaluation sizes. Calibration indices (100-119) are disjoint from the
@@ -69,11 +75,21 @@ def set_seeds(seed: int = SEED) -> None:
 
 
 def discover_voc_root():
-    """Prefer a Kaggle-mounted VOC copy (read-only, so never download into it)."""
+    """Find VOC2007, or say where to download it.
+
+    Returns (root, needs_download). A Kaggle-mounted copy is preferred and is
+    never downloaded into, because /kaggle/input is read-only. Otherwise we
+    look for an existing copy next to the repository, and failing that we
+    download into <repo>/data.
+    """
     for p in glob.glob("/kaggle/input/**/VOCdevkit", recursive=True):
         if os.path.isdir(os.path.join(p, "VOC2007", "JPEGImages")):
             return os.path.dirname(p), False
-    return "/kaggle/working/data", True
+
+    local = REPO_ROOT / "data"
+    if (local / "VOCdevkit" / "VOC2007" / "JPEGImages").is_dir():
+        return str(local), False
+    return str(local), True
 
 
 def load_model(architecture: str = "resnet50"):
