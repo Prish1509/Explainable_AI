@@ -1,0 +1,6 @@
+metric,value,n,threshold
+gradcam_vs_library_pearson,0.9999998807907104,1,> 0.95
+deletion_auc_real_map,0.08258756164315856,20,< random
+deletion_auc_random_map,0.0888847619267108,20,
+deletion_real_map_win_rate,0.5,20,
+validation_passed,1.0,1,1 = passed
