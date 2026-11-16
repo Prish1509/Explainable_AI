@@ -184,7 +184,8 @@ hardware expect agreement to a few decimal places.
 - **`src/`** — the final pipeline. **All reported results come from here.**
 - **`results/`** — every CSV and figure, each regenerable by a script in `src/`.
 - **`notebooks/`** — thin Kaggle runners that clone the repo, run `src/`, and
-  push results back.
+  push results back. `notebook1.ipynb` is Prisha's (benchmark, localization,
+  VGG-16); `notebook2.ipynb` is Parvathy's (uncertainty, sanity check).
 
 ## Validation
 
@@ -202,12 +203,15 @@ auditable from the committed files rather than only from console output.
 
 ## Division of work
 
-- **Prisha** — Grad-CAM implementation, multi-layer fusion, CAM baselines,
-  main benchmark and sweeps, localization, VGG-16.
-- **Parvathy** — Deletion and ROAD metrics, TTA uncertainty, sparsification and
-  H2 experiments, cascading randomization sanity check.
+- **Prisha** (`notebooks/notebook1.ipynb`) — Grad-CAM implementation,
+  multi-layer fusion and weight calibration, CAM baselines, main benchmark and
+  sweeps, localization, VGG-16.
+- **Parvathy** (`notebooks/notebook2.ipynb`) — Deletion and ROAD metrics, TTA
+  uncertainty, sparsification and H2 experiments, cascading randomization
+  sanity check.
 
-Both members reviewed each other's code and results.
+Both members reviewed each other's code and results. The two notebooks record
+which experiments each of us actually executed.
 
 ## LLM-use disclosure
 
