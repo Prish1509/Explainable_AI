@@ -30,6 +30,10 @@ from torchvision.models import (
 SEED = 0
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# np.trapz was renamed np.trapezoid in NumPy 2.0 and removed in later versions.
+# Bind whichever exists so the code runs on both old and new NumPy.
+trapezoid = getattr(np, "trapezoid", None) or np.trapz
+
 # Repository root, resolved from this file, so the defaults below work anywhere
 # (a laptop, a server, Kaggle) without any environment setup.
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -229,7 +233,7 @@ def perturbation_auc(model, x, saliency, class_idx, mode="deletion",
             source = x if mode == "insertion" else base
             current[0, :, ys, xs] = source[0, :, ys, xs]
         scores.append(float(F.softmax(model(current), dim=1)[0, class_idx].item()))
-    return float(np.trapz(scores, fractions)), np.asarray(scores)
+    return float(trapezoid(scores, fractions)), np.asarray(scores)
 
 
 def road_score(model, x, heat, class_idx):
