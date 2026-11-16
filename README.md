@@ -63,13 +63,40 @@ that repeated views.
 ## Setup
 
 ```bash
+git clone https://github.com/Prish1509/Explainable_AI.git
+cd Explainable_AI
 pip install -r requirements.txt
 ```
 
-Runs on a single GPU (developed on a free Kaggle T4). VOC 2007 test is detected
-from a Kaggle-mounted copy if present, otherwise downloaded.
+**Requirements.** Python 3.10+ and the pinned packages in `requirements.txt`.
+No manual data setup: PASCAL VOC 2007 test (~450 MB) is downloaded into
+`data/` on first run, or picked up automatically from a Kaggle-mounted copy.
+Pretrained weights download themselves.
+
+**Hardware.** A CUDA GPU is strongly recommended. The full reproduction is
+roughly 25,000 forward passes through ResNet-50 — about 95 minutes on a Tesla
+T4, but CPU inference is 20–50× slower, so a full CPU run takes many hours.
+Use `--quick` below on a machine without a GPU.
+
+The exact environment used to produce the committed results (Python, torch,
+CUDA, GPU model) is recorded in `results/environment.txt`.
 
 ## Reproducing the experiments
+
+One command runs everything in order:
+
+```bash
+python src/run_all.py            # full reproduction (GPU, ~95 min)
+python src/run_all.py --quick    # correctness checks only (~5 min, CPU is fine)
+python src/run_all.py --list     # show the steps without running them
+```
+
+`--quick` runs the validation gate and the sanity check. That is enough to
+confirm the implementation is correct (Grad-CAM matches the reference library
+at r = 1.0000) and that the pipeline responds to the model's weights, without
+needing a GPU.
+
+The individual experiments can also be run on their own:
 
 ```bash
 python src/run_validation.py     # correctness gate (run this first)
@@ -80,10 +107,16 @@ python src/run_uncertainty.py    # TTA uncertainty, sparsification, H2
 python src/run_sanity.py         # cascading randomization
 ```
 
-Outputs are written to `results/` (override with `UMLCAM_OUT=<dir>`). Seeds are
-fixed (`SEED = 0`). Fusion weights are calibrated on images 100–119 and all
-results are reported on images 0–99, so weights are never tuned on the
-evaluation set.
+Outputs are written to `results/` (override with `UMLCAM_OUT=<dir>`), which
+overwrites the committed result files.
+
+**Determinism.** Seeds are fixed (`SEED = 0`) for Python, NumPy, torch and
+CUDA, every sampling step uses an explicitly seeded generator, and cuDNN runs
+in deterministic mode (`benchmark = False`). Fusion weights are calibrated on
+images 100–119 while all results are reported on images 0–99, so the weights
+are never tuned on the evaluation set. Exact floating-point reproduction is
+guaranteed only on the same environment as `results/environment.txt`; on other
+hardware expect agreement to a few decimal places.
 
 ## Repository structure
 
