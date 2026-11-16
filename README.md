@@ -95,28 +95,57 @@ and fusion weights calibrated on **100–119**. The split is fixed and read in a
 deterministic order, so these indices refer to the same images on any machine —
 which is why the dataset does not need to be redistributed with this repository.
 
-**Hardware.** A CUDA GPU is strongly recommended. The full reproduction is
-roughly 25,000 forward passes through ResNet-50 — about 95 minutes on a Tesla
-T4, but CPU inference is 20–50× slower, so a full CPU run takes many hours.
-Use `--quick` below on a machine without a GPU.
-
 The exact environment used to produce the committed results (Python, torch,
 CUDA, GPU model) is recorded in `results/environment.txt`.
 
 ## Reproducing the experiments
 
-One command runs everything in order:
+The code auto-detects CUDA and falls back to CPU, so **the same commands work
+either way** — only the runtime differs. Pick the path that matches your
+machine.
+
+There are two things you can run. They differ in **how much** they run, not in
+which hardware they need:
+
+| | on a GPU | on CPU only |
+|---|---|---|
+| `--quick` — 3 of the 7 steps | ~2 min | ~5 min |
+| full run — all 7 steps | ~95 min | many hours (not advised) |
+
+A GPU is always faster. The reason `--quick` finishes in minutes on a laptop is
+that it skips the expensive experiments, not that CPUs are quick.
+
+### Quick check — no GPU needed
 
 ```bash
-python src/run_all.py            # full reproduction (GPU, ~95 min)
-python src/run_all.py --quick    # correctness checks only (~5 min, CPU is fine)
-python src/run_all.py --list     # show the steps without running them
+git clone https://github.com/Prish1509/Explainable_AI.git
+cd Explainable_AI
+pip install -r requirements.txt
+python src/run_all.py --quick
 ```
 
-`--quick` runs the validation gate and the sanity check. That is enough to
-confirm the implementation is correct (Grad-CAM matches the reference library
-at r = 1.0000) and that the pipeline responds to the model's weights, without
-needing a GPU.
+This runs the correctness gate and the sanity check: enough to confirm the
+from-scratch Grad-CAM matches the reference `pytorch-grad-cam` implementation
+(Pearson r = 1.0000), that the Deletion metric separates a real saliency map
+from a random one, and that the pipeline genuinely depends on the model's
+learned weights. No GPU, no CUDA, no configuration.
+
+It does **not** regenerate the reported results — for that, use the full run.
+
+### Full reproduction — a GPU is strongly recommended
+
+```bash
+python src/run_all.py            # every experiment, in order
+```
+
+Roughly 25,000 forward passes through ResNet-50: about 95 minutes on a Tesla
+T4. CPU inference is 20–50× slower, so the same run on a laptop takes many
+hours — possible, but not advised. `run_all.py` runs each experiment as its own
+process, times it, stops at the first failure, and prints a pass/fail summary.
+
+```bash
+python src/run_all.py --list     # show the steps and time estimates, run nothing
+```
 
 The individual experiments can also be run on their own:
 
@@ -131,6 +160,10 @@ python src/run_sanity.py         # cascading randomization
 
 Outputs are written to `results/` (override with `UMLCAM_OUT=<dir>`), which
 overwrites the committed result files.
+
+**NumPy compatibility.** `np.trapz` was renamed `np.trapezoid` in NumPy 2.0 and
+removed in later releases, so `common.py` binds whichever exists. The code
+therefore runs on both the pinned NumPy and current versions.
 
 **Determinism.** Seeds are fixed (`SEED = 0`) for Python, NumPy, torch and
 CUDA, every sampling step uses an explicitly seeded generator, and cuDNN runs
@@ -160,6 +193,9 @@ hardware expect agreement to a few decimal places.
   (mean AUC 0.0826 vs 0.0889). Note the per-image win rate is only 0.50,
   which is itself evidence that Deletion is weakly discriminative — one reason
   we treat ROAD as the primary metric.
+
+Both numbers are written to `results/validation_summary.csv`, so the gate is
+auditable from the committed files rather than only from console output.
 
 ## Division of work
 
